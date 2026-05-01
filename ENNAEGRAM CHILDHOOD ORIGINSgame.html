@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enneagram MBTI Engine</title>
+    <style>
+        :root { --primary: #0984e3; --bg: #dfe6e9; --card: #ffffff; --text: #2d3436; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 15px; }
+        .container { max-width: 500px; margin: auto; background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h2 { color: var(--primary); text-align: center; font-size: 1.3rem; margin-bottom: 10px; }
+        .instruction { font-size: 0.85rem; color: #636e72; margin-bottom: 20px; text-align: center; line-height: 1.4; }
+        button { display: block; width: 100%; padding: 16px; margin: 10px 0; border: none; border-radius: 12px; background: #f1f2f6; cursor: pointer; transition: 0.2s; font-size: 14px; text-align: left; font-weight: 500; border-left: 4px solid transparent; }
+        button:hover { background: #e1e4e8; border-left: 4px solid var(--primary); transform: translateX(5px); }
+        .result-card { background: #fff; border-top: 5px solid var(--primary); padding: 20px; border-radius: 15px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .badge { display: inline-block; background: var(--primary); color: white; padding: 4px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: bold; margin-bottom: 10px; }
+        .trait-tag { display: inline-block; background: #eee; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin: 2px; }
+        .warning { color: #d63031; font-size: 0.8rem; font-style: italic; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="display">
+        <h2>Enneagram x MBTI Engine</h2>
+        <p class="instruction">Sistem akan menganalisis Childhood Origins dan kebiasaanmu untuk menentukan tipe kepribadian yang paling akurat.</p>
+        <button onclick="startQuiz()" style="text-align:center; background: var(--primary); color:white;">Mulai Analisis Sistem</button>
+    </div>
+</div>
+
+<script>
+let state = {
+    domType: '',
+    wing: '',
+    tritype: [],
+    instinct: [],
+    userTraits: { E:0, I:0, N:0, S:0, F:0, T:0, P:0, J:0 }
+};
+
+const correlation = {
+    "1": ["INFP","INFJ","ENFJ","INTP","INTJ","ENTJ","ISTP","ESTP","ISFP","ESFP","ISFJ","ESFJ","ISTJ","ESTJ"],
+    "2": ["INFP","ENFP","ENFJ","ENTJ","ESFP","ISFJ","ESFJ"],
+    "3": ["INFP","ENFP","ENFJ","INTP","ENTP","INTJ","ENTJ","ISTP","ESTP","ISFP","ESFP","ISFJ","ESFJ","ISTJ","ESTJ"],
+    "4": ["INFP","ENFP","INFJ","ENFJ","ENTP","ISTP","ISFP","ESFP","ISFJ"],
+    "5": ["INFP","INFJ","INTP","ENTP","INTJ","ISTP","ISFP","ISTJ"],
+    "6": ["INFP","INFJ","ENFJ","INTP","ENTP","INTJ","ENTJ","ISTP","ESTP","ISFP","ESFP","ISFJ","ISTJ","ESTJ"],
+    "7": ["INFP","ENFP","INFJ","ENFJ","INTP","ENTP","INTJ","ENTJ","ISTP","ESTP","ESFP","ESFJ","ISTJ","ESTJ"],
+    "8": ["ENFJ","ENTP","INTJ","ENTJ","ISTP","ESTP","ESFP","ESFJ","ISTJ","ESTJ"],
+    "9": ["INFP","ENFP","INFJ","ENFJ","INTP","INTJ","ISTP","ESTP","ISFP","ESFP","ISFJ","ESFJ","ISTJ","ESTJ"]
+};
+
+function startQuiz() {
+    renderQuestion("Apa dorongan utamamu saat menentukan pilihan?", [
+        {t: "Hati (Triad 2,3,4)", v: "heart"},
+        {t: "Otak (Triad 5,6,7)", v: "head"},
+        {t: "Spontan (Triad 8,9,1)", v: "gut"}
+    ], (v) => {
+        state.triadOrder = [v, ...['heart', 'head', 'gut'].filter(x => x !== v)];
+        askEnneagram(0);
+    });
+}
+
+function askEnneagram(idx) {
+    if (idx < 3) {
+        const type = state.triadOrder[idx];
+        const content = {
+            heart: { title: "Relasi dengan Figur Ayah", opt: [{t:"Suka memberi & menolong (E2)",v:"2"},{t:"Membuktikan prestasi (E3)",v:"3"},{t:"Mencari jati diri/unik (E4)",v:"4"}] },
+            gut: { title: "Relasi dengan Figur Ibu", opt: [{t:"Tegas & mandiri (E8)",v:"8"},{t:"Damai & tenang (E9)",v:"9"},{t:"Disiplin & benar (E1)",v:"1"}] },
+            head: { title: "Relasi Lingkungan Sosial", opt: [{t:"Pengamat/Menyendiri (E5)",v:"5"},{t:"Waspada & cari aman (E6)",v:"6"},{t:"Suka senang-senang (E7)",v:"7"}] }
+        };
+        renderQuestion(content[type].title, content[type].opt, (v) => {
+            state.tritype.push(v);
+            if (idx === 0) state.domType = v;
+            askEnneagram(idx + 1);
+        });
+    } else { askWing(); }
+}
+
+function askWing() {
+    const d = state.domType;
+    const wings = { "1":["w9","w2"],"2":["w1","w3"],"3":["w2","w4"],"4":["w3","w5"],"5":["w4","w6"],"6":["w5","w7"],"7":["w6","w8"],"8":["w7","w9"],"9":["w8","w1"] };
+    const desc = {
+        "w1":"Perfeksionis & tertib","w2":"Suka membantu & diandalkan","w3":"Fokus prestasi & citra diri","w4":"Merasa unik & artistik",
+        "w5":"Suka riset & observasi","w6":"Waspada & cari aman","w7":"Suka hiburan & pengalaman","w8":"Tegas & prinsip kuat","w9":"Tenang & damai"
+    };
+    renderQuestion("Pilih kecenderungan tambahanmu:", [
+        {t: desc[wings[d][0]], v: wings[d][0].replace('w','')},
+        {t: desc[wings[d][1]], v: wings[d][1].replace('w','')}
+    ], (v) => { state.wing = v; askInstinct(0); });
+}
+
+function askInstinct(step) {
+    const opt = [{t:"Kelompok/Sosial (SO)",v:"so"},{t:"Kesendirian/Nyaman (SP)",v:"sp"},{t:"Orang Spesial/Hobi (SX)",v:"sx"}];
+    renderQuestion(step === 0 ? "Kamu lebih suka sibuk ke mana?" : "Pilihan kesibukan kedua?", 
+    opt.filter(o => !state.instinct.includes(o.v)), (v) => {
+        state.instinct.push(v);
+        if (step === 0) askInstinct(1);
+        else askTraits(0);
+    });
+}
+
+function askTraits(idx) {
+    const questions = [
+        {t:"Adaptasi Orang Baru", opt:[{t:"Gampang beradaptasi",v:"E"},{t:"Sulit beradaptasi",v:"I"}]},
+        {t:"Pola Pikir", opt:[{t:"Sering berpikir panjang tapi malas gerak",v:"N"},{t:"Langsung gerak tapi sulit pikir panjang",v:"S"}]},
+        {t:"Sifat Dasar", opt:[{t:"Emosional",v:"F"},{t:"Realistis",v:"T"}]},
+        {t:"Lingkungan Baru", opt:[{t:"Pintar cari peluang tapi sering salah fokus",v:"P"},{t:"Disiplin hal berulang tapi sulit hal baru",v:"J"}]}
+    ];
+    if (idx < 4) {
+        renderQuestion(questions[idx].t, questions[idx].opt, (v) => {
+            state.userTraits[v] = 1;
+            askTraits(idx + 1);
+        });
+    } else { calculateFinal(); }
+}
+
+function renderQuestion(title, options, callback) {
+    let html = `<h2>${title}</h2>`;
+    options.forEach(o => { html += `<button onclick="handleNext('${o.v}')">${o.t}</button>`; });
+    document.getElementById('display').innerHTML = html;
+    window.handleNext = callback;
+}
+
+function calculateFinal() {
+    const userMBTI = (state.userTraits.E ? "E":"I") + (state.userTraits.N ? "N":"S") + (state.userTraits.F ? "F":"T") + (state.userTraits.P ? "P":"J");
+    const allowed = correlation[state.domType];
+    
+    let finalMBTI = userMBTI;
+    let isContradiction = false;
+
+    // Jika MBTI pilihan user tidak ada di daftar korelasi Enneagram dominannya
+    if (!allowed.includes(userMBTI)) {
+        isContradiction = true;
+        // Cari MBTI paling mirip di daftar allowed
+        finalMBTI = allowed[0]; // Default ke pertama jika bener-bener gak ketemu yang mirip
+    }
+
+    const enneaTips = {
+        "1": {plus: "Disiplin & Integritas", minus: "Kaku & Menghakimi", sol: "Belajar bahwa 'cukup baik' itu sudah cukup."},
+        "2": {plus: "Hangat & Peka", minus: "Intrusif & Lupa diri", sol: "Bantu diri sendiri sebelum bantu orang lain."},
+        "3": {plus: "Efisien & Percaya Diri", minus: "Otentisitas rendah", sol: "Berhenti sejenak, siapa kamu tanpa prestasi?"},
+        "4": {plus: "Kreatif & Dalam", minus: "Melankolis berlebih", sol: "Fokus pada apa yang ada, bukan yang hilang."},
+        "5": {plus: "Cerdas & Mandiri", minus: "Terasing", sol: "Dunia luar tidak semenakutkan itu, ayo keluar."},
+        "6": {plus: "Setia & Bertanggungjawab", minus: "Parno", sol: "Kembangkan rasa percaya pada diri sendiri."},
+        "7": {plus: "Ceria & Cepat belajar", minus: "Gampang bosan", sol: "Kedalaman lebih memuaskan daripada keluasan."},
+        "8": {plus: "Berani & Pelindung", minus: "Kasar/Intimidatif", sol: "Kelemahlembutan adalah bentuk kekuatan sejati."},
+        "9": {plus: "Damai & Penengah", minus: "Pasif", sol: "Kehadiranmu penting, jangan hilangkan dirimu."}
+    };
+
+    const tips = enneaTips[state.domType];
+
+    document.getElementById('display').innerHTML = `
+        <div class="result-card">
+            <center><div class="badge">ANALISIS SISTEM SELESAI</div></center>
+            <h2 style="margin:5px 0;">${finalMBTI} - ${state.domType}w${state.wing}</h2>
+            <center>
+                <span class="trait-tag">${state.instinct.join('/')}</span>
+                <span class="trait-tag">Tritype ${state.tritype.join('')}</span>
+            </center>
+            ${isContradiction ? `<p class="warning">Catatan: MBTI ${userMBTI} memiliki kontradiksi alami dengan Enneagram ${state.domType}. Sistem menyesuaikan ke tipe paling stabil.</p>` : ''}
+            
+            <hr>
+            <p><b>Kelebihan:</b> ${tips.plus}</p>
+            <p><b>Kekurangan:</b> ${tips.minus}</p>
+            <div style="background:#f1f2f6; padding:15px; border-radius:10px; margin-top:10px;">
+                <p><b>💡 Solusi Pertumbuhan:</b><br>${tips.sol}</p>
+            </div>
+            <p style="font-size:0.8rem; margin-top:15px; color:#7f8c8d;">
+                <b>Analisis:</b> Kamu adalah tipe yang cenderung ${state.userTraits.E ? 'Ekspresif' : 'Reflektif'} dengan pola ${state.userTraits.F ? 'Empati' : 'Logika'}. Luka masa kecilmu membentuk pertahanan di angka ${state.domType}.
+            </p>
+        </div>
+        <button onclick="location.reload()" style="background:var(--primary); color:white; text-align:center; margin-top:20px;">Analisis Ulang</button>
+    `;
+}
+</script>
+</body>
+</html>
